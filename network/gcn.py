@@ -1,5 +1,6 @@
 import tensorflow as tf
 import scipy.sparse as sp
+import numpy as np
 
 class GCN(object):
 
@@ -9,6 +10,7 @@ class GCN(object):
         self.num_rela = num_rela
         self.dims = dims
         self.supports = None
+        self.num_features_nonzero = (100,)
 
     def __preprocess_features__(self, features):
         """Row-normalize feature matrix and convert to tuple representation"""
@@ -17,7 +19,7 @@ class GCN(object):
         r_inv[np.isinf(r_inv)] = 0.
         r_mat_inv = sp.diags(r_inv)
         features = r_mat_inv.dot(features)
-        return [sparse_to_tuple(features)]
+        return self.__sparse_to_tuple__(sp.coo_matrix(features))
 
     def __adj_normalized__(self, adj):
         """Symmetrically normalize adjacency matrix."""
@@ -28,7 +30,7 @@ class GCN(object):
         d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
         return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
 
-    def __sparse_to_tuple__(sparse_mx):
+    def __sparse_to_tuple__(self, sparse_mx):
         """Convert sparse matrix to tuple representation."""
         def to_tuple(mx):
             if not sp.isspmatrix_coo(mx):
@@ -59,12 +61,12 @@ class GCN(object):
         """
         features = self.__preprocess_features__(features)
         supports = list()
-        for i in len(adjs):
+        for i in range(len(adjs)):
             supports.append([self.__preprocess_adj__(adjs[i])])
-        num_features_nonzero = features[1].shape
+        self.num_features_nonzero = features[1].shape
         return features, supports
 
-    def __dot__(x, y, sparse=False):
+    def __dot__(self, x, y, sparse=False):
         """Wrapper for tf.matmul (sparse vs dense)."""
         if sparse:
             res = tf.sparse_tensor_dense_matmul(x, y)
@@ -72,13 +74,13 @@ class GCN(object):
             res = tf.matmul(x, y)
         return res
 
-    def __glorot__(shape, name=None):
+    def __glorot__(self, shape, name=None):
         """Glorot & Bengio (AISTATS 2010) init."""
         init_range = np.sqrt(6.0/(shape[0]+shape[1]))
         initial = tf.random_uniform(shape, minval=-init_range, maxval=init_range, dtype=tf.float32)
         return tf.Variable(initial, name=name)
 
-    def __sparse_dropout__(x, keep_prob, noise_shape):
+    def __sparse_dropout__(self, x, keep_prob, noise_shape):
         """Dropout for sparse tensors."""
         random_tensor = keep_prob
         random_tensor += tf.random_uniform(noise_shape)
@@ -90,16 +92,14 @@ class GCN(object):
                  sparse_inputs=False, act=tf.nn.relu, bias=False):
 
         # weights and bias
-        with tf.varibale_scope('gcn' + str(layer_id)):
-            vars = dict()
-            for adj_idx in range(3):
-                support = self.supports[adj_idx]
-                for i in range(len(support)):
-                    w_id = str(layer_id) + str(adj_idx) + str(i)
-                    vars['weights_'+w_id] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
+        vars = dict()
+        with tf.variable_scope('gcn_layer_' + str(layer_id)):
+            for i in range(3):
+                w_id = str(layer_id) + str(i)
+                vars['weights_'+str(i)] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
                 if bias:
                     initial = tf.zeros([output_dim],  dtype=tf.float32)
-                    vars['bias'] = tf.Variable(initial, name='bias_'+str(layer_id)+str(adj_idx))
+                    vars['bias'+str(i)] = tf.Variable(initial, name='bias_'+str(i))
 
         # drop out
         if sparse_inputs:
@@ -112,16 +112,11 @@ class GCN(object):
         # convolve
         outputs = []
         for adj_idx in range(3):
-            support = inputs[adj_idx]
-            output = list()
-            w_id = str(layer_id) + str(adj_idx) + str(i)
-            for i in range(len(support)):
-                out = self.__dot__(support[i], var['weights_'+w_id])
-                output.append(self.__dot__(support[i], out, sparse=True))
-            outs = tf.add_n(output)
+            out = self.__dot__(inputs[adj_idx], vars['weights_'+str(i)], sparse=sparse_inputs)
+            out = self.__dot__(self.supports[adj_idx], out, sparse=True)
             if bias:
-                outs = outs + vars['bias_'+str(layer_id)+str(adj_idx)]
-            outputs.append(outs)
+                outs = outs + vars['bias_'+str(i)]
+            outputs.append(out)
         return outputs
 
     def __merge__(self, inputs, act=lambda x: x):
@@ -134,7 +129,7 @@ class GCN(object):
         outputs = self.__gcnLayer__(layer_id=0,
                                     input_dim=self.dims[0],
                                     output_dim=self.dims[1],
-                                    inputs=features,
+                                    inputs=[features for _ in range(3)],
                                     sparse_inputs=True,
                                     act=tf.nn.relu)
         for i in range(1, layer_num):

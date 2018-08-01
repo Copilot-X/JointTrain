@@ -18,9 +18,12 @@ class Selector(object):
         else:
             return x
 
-    def __logits__(self, x, var_scope = None, reuse = tf.AUTO_REUSE):
+    def __logits__(self, x, var_scope = None, reuse = tf.AUTO_REUSE, gcn_rela=None):
         with tf.variable_scope(var_scope or 'logits', reuse = reuse):
-            relation_matrix = tf.get_variable('relation_matrix', [self.num_classes, x.shape[1]], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+            if gcn_rela is None:
+                relation_matrix = tf.get_variable('relation_matrix', [self.num_classes, x.shape[1]], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+            else:
+                relation_matrix = gcn_rela
             bias = tf.get_variable('bias', [self.num_classes], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
             logits = tf.matmul(x, tf.transpose(relation_matrix)) + bias
         return logits
@@ -66,7 +69,7 @@ class Selector(object):
                     stack_repre = self.__dropout__(tf.stack(tower_repre))
                 else:
                     stack_repre = tf.stack(tower_repre)
-                return self.__logits__(stack_repre, "attention_logits", True), stack_repre
+                return self.__logits__(stack_repre, "attention_logits", True, gcn_rela), stack_repre
             else:
                 test_attention_logit = self.__attention_test_logits__(x, "attention_logits", False, gcn_rela)
                 test_tower_output = []
@@ -74,7 +77,7 @@ class Selector(object):
                 for i in range(scope.shape[0] - 1):
                     test_attention_score = tf.nn.softmax(tf.transpose(test_attention_logit[scope[i]:scope[i+1],:]))
                     final_repre = tf.matmul(test_attention_score, x[scope[i]:scope[i+1]])
-                    logits = self.__logits__(final_repre, "attention_logits", True)
+                    logits = self.__logits__(final_repre, "attention_logits", True, gcn_rela)
                     test_repre.append(final_repre)
                     test_tower_output.append(tf.diag_part(tf.nn.softmax(logits)))
                 test_repre = tf.reshape(tf.stack(test_repre), [scope.shape[0] - 1, self.num_classes, -1])

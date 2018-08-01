@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import json
-import os
+import sys
 import networkx as nx
 import pickle as pkl
 
@@ -150,10 +150,11 @@ def init_train_files(name):
             instance_triple.append(tup)
             instance_scope.append([s,s])
         instance_scope[len(instance_triple) - 1][1] = s
-        if (s+1) % 100 == 0:
-            print(s)
+        if (s+1) % 10000 == 0:
+            sys.stdout.write('\r{s}'.format(s=str(s+1)))
+            sys.stdout.flush()
     return np.array(instance_triple), np.array(instance_scope), sen_len, sen_label, sen_word, sen_pos1, sen_pos2, sen_mask
-    
+
 
 def init_test_files(name):
     print('reading ' + name +' data...')
@@ -171,7 +172,7 @@ def init_test_files(name):
     instance_entity = []
     instance_entity_no_bag = []
 
-    ss = [] 
+    ss = []
     for s in range(total):
         content = f.readline().strip().split()
         sentence = content[5:-1]
@@ -182,9 +183,9 @@ def init_test_files(name):
         rel_name = content[4]
 
         ss.append((en1_id + '\t' + en2_id + '\t' + rel_name, sentence, en1_id, en2_id, en1_name, en2_name, rel_name))
-    
+
     ss = sorted(ss, key=lambda x:x[0])
-        
+
     for s in range(total):
         unique_id, sentence, en1_id, en2_id, en1_name, en2_name, rel_name = ss[s]
         if rel_name in relation2id:
@@ -231,8 +232,9 @@ def init_test_files(name):
             if tup[2] != 0:
                 instance_triple.append(tup)
         instance_scope[len(instance_scope) - 1][1] = s
-        if (s+1) % 100 == 0:
-            print(s)
+        if (s+1) % 10000 == 0:
+            sys.stdout.write('\r{s}'.format(s=str(s+1)))
+            sys.stdout.flush()
     return np.array(instance_entity), np.array(instance_entity_no_bag), np.array(instance_triple), np.array(instance_scope), sen_len, sen_label, sen_word, sen_pos1, sen_pos2, sen_mask
 
 def build_kg(instance_triple):
@@ -247,15 +249,14 @@ def build_kg(instance_triple):
         e1_id, e2_id, r = pair
         r = int(r)
         kg_h2r.add_nodes_from([e1_id, e2_id])
-        kg_r2h.add_nodes_from([e1_id, e2_id])
+        kg_r2t.add_nodes_from([e1_id, e2_id])
         kg_h2r.add_edge(e1_id, r)
-        kg_r2h.add_edge(e2_id, r)
+        kg_r2t.add_edge(e2_id, r)
     print 'saving KG...'
     with open(export_path + 'h2r.graph', 'wb') as f:
         pkl.dump(kg_h2r, f)
     with open(export_path + 'r2t.graph', 'wb') as f:
         pkl.dump(kg_r2t, f)
-    
 
 
 init_word()

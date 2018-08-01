@@ -1,0 +1,6 @@
+*.pyc
+data/*
+TransX/data/*
+*.so
+origin_data/*
+summary/*
