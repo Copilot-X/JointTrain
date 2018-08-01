@@ -8,6 +8,7 @@ class GCN(object):
         self.dropout = drop_prob
         self.num_rela = num_rela
         self.dims = dims
+        self.supports = None
 
     def __preprocess_features__(self, features):
         """Row-normalize feature matrix and convert to tuple representation"""
@@ -16,7 +17,7 @@ class GCN(object):
         r_inv[np.isinf(r_inv)] = 0.
         r_mat_inv = sp.diags(r_inv)
         features = r_mat_inv.dot(features)
-        return sparse_to_tuple(features)
+        return [sparse_to_tuple(features)]
 
     def __adj_normalized__(self, adj):
         """Symmetrically normalize adjacency matrix."""
@@ -61,7 +62,7 @@ class GCN(object):
         for i in len(adjs):
             supports.append([self.__preprocess_adj__(adjs[i])])
         num_features_nonzero = features[1].shape
-        return features, adjs
+        return features, supports
 
     def __dot__(x, y, sparse=False):
         """Wrapper for tf.matmul (sparse vs dense)."""
@@ -126,14 +127,14 @@ class GCN(object):
     def __merge__(self, inputs, act=lambda x: x):
         return tf.add_n(inputs)
 
-    def gcn(self, supports, ):
-
+    def gcn(self, features, supports):
+        self.supports = supports
         layer_num = len(self.dims) - 1
         # layer builder
         outputs = self.__gcnLayer__(layer_id=0,
                                     input_dim=self.dims[0],
                                     output_dim=self.dims[1],
-                                    inputs=self.supports,
+                                    inputs=features,
                                     sparse_inputs=True,
                                     act=tf.nn.relu)
         for i in range(1, layer_num):

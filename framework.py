@@ -55,11 +55,6 @@ class Framework(object):
         self.scope = tf.placeholder(dtype=tf.int32, shape=[FLAGS.batch_size + 1], name='scope')
         self.weights = tf.placeholder(dtype=tf.float32, shape=[FLAGS.batch_size])
         self.data_word_vec = np.load(os.path.join(FLAGS.export_path, 'vec.npy'))
-        # gcn placeholders
-        self.features = tf.placeholder(dtype=tf.float32, name='kg_features')
-        adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
-        self.adjs = [tf.placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
-        self.gcn_dims = [100, 300, 500, 690]
 
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
@@ -67,6 +62,12 @@ class Framework(object):
         self.gcn = GCN(is_training, FLAGS.drop_prob, FLAGS.num_classes, self.gcn_dims)
         self.selector = Selector(FLAGS.num_classes, is_training, FLAGS.drop_prob)
         self.classifier = Classifier(is_training, self.label, self.weights)
+
+        # Gcn
+        self.features = tf.sparse_placeholder(dtype=tf.float32, name='kg_features')
+        adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
+        self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
+        self.gcn_dims = [100, 300, 500, 690]
 
         # Metrics
         self.acc_NA = Accuracy()
@@ -88,6 +89,9 @@ class Framework(object):
         self.data_train_pos1 = np.load(os.path.join(FLAGS.export_path, 'train_pos1.npy'))
         self.data_train_pos2 = np.load(os.path.join(FLAGS.export_path, 'train_pos2.npy'))
         self.data_train_mask = np.load(os.path.join(FLAGS.export_path, 'train_mask.npy'))
+        
+        # gcn data
+        self.load_gcn_data()
 
         print('reading finished')
         print('mentions         : %d' % (len(self.data_instance_triple)))
@@ -124,6 +128,9 @@ class Framework(object):
         self.data_test_pos2 = np.load(os.path.join(FLAGS.export_path, 'test_pos2.npy'))
         self.data_test_mask = np.load(os.path.join(FLAGS.export_path, 'test_mask.npy'))
 
+        # gcn data
+        self.load_gcn_data()
+
         print('reading finished')
         print('mentions         : %d' % (len(self.data_instance_triple)))
         print('sentences        : %d' % (len(self.data_test_length)))
@@ -136,9 +143,9 @@ class Framework(object):
         print('loading gcn features...')
         self.load_h2r = pkl.load(os.path.join(FLAGS.export_path, 'h2r.graph'))
         self.load_r2t = pkl.load(os.path.join(FLAGS.export_path, 'r2t.graph'))
-        h2r_adj = nx.adjacency_matrix(self.h2r)
-        r2t_adj = nx.adjacency_matrix(self.r2t)
-        self_adj = sparse.csr_matrix(np.zerosh2r_adj.shape)
+        h2r_adj = nx.adjacency_matrix(self.load_2r)
+        r2t_adj = nx.adjacency_matrix(self.load_r2t)
+        self_adj = sparse.csr_matrix(np.eye(h2r_adj.shape))
         self.load_adjs = [h2r_adj, r2t_adj, self_adj]
         rela_embed = np.load(os.path.join(FLAGS.export_path, 'rela_embed.npy'))
         enty_embed = np.load(os.path.join(FLAGS.export_path, 'entity_embed.npy'))
@@ -147,8 +154,9 @@ class Framework(object):
     def init_train_model(self, loss, output, optimizer=tf.train.GradientDescentOptimizer):
         print('initializing training model...')
 
-        # gcn data
+        # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
+
         # Loss and output
         self.loss = loss
         self.output = output
@@ -176,7 +184,8 @@ class Framework(object):
 
     def init_test_model(self, output):
         print('initializing test model...')
-        # gcn data
+
+        # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
 
         self.output = output
@@ -201,10 +210,12 @@ class Framework(object):
             self.scope: np.array(scope),
             self.weights: weights,
             # gcn placeholders
-            self.features: self.load_features,
-            self.adjs: self.load_adjs
+            self.features: self.load_features
         }
+        feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
+        
         result = self.sess.run([self.train_op, self.global_step, self.merged_summary, self.output] + result_needed, feed_dict)
+
         self.step = result[1]
         _output = result[3]
         result = result[4:]

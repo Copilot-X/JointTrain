@@ -15,19 +15,17 @@ def pcnn_att(is_training):
     # pcnn layer
     x = framework.encoder.pcnn(embedding, FLAGS.hidden_size, framework.mask, activation=tf.nn.relu)
     # gcn layer
-    rela_embed = framework.gcn.gcn()
+    rela_embed = framework.gcn.gcn(framework.features, framework.supports)
     # attention
     logit, repre = framework.selector.attention(x, framework.scope, framework.label_for_select, gcn_rela=rela_embed)
 
     if is_training:
         loss = framework.classifier.softmax_cross_entropy(logit)
         output = framework.classifier.output(logit)
-        framework.load_gcn_data()
         framework.init_train_model(loss, output, optimizer=tf.train.GradientDescentOptimizer)
         framework.load_train_data()
         framework.train()
     else:
-        framework.load_gcn_data()
         framework.init_test_model(tf.nn.softmax(logit))
         framework.load_test_data()
         framework.test()
