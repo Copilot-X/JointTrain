@@ -60,6 +60,7 @@ class Framework(object):
         adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
         self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
         self.gcn_dims = [100, 300, 500, 690]
+        self.num_features_nonzero = tf.placeholder(tf.int32)
 
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
@@ -213,12 +214,12 @@ class Framework(object):
             self.scope: np.array(scope),
             self.weights: weights,
             # gcn placeholders
-            self.features: self.load_features
+            self.features: self.load_features,
+            self.num_features_nonzero: self.load_features[1].shape
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
 
         result = self.sess.run([self.train_op, self.global_step, self.merged_summary, self.output] + result_needed, feed_dict)
-
         self.step = result[1]
         _output = result[3]
         result = result[4:]
@@ -246,6 +247,7 @@ class Framework(object):
             self.scope: np.array(scope),
             # gcn placeholders
             self.features: self.load_features,
+            self.num_features_nonzero: self.load_features[1].shape
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
         result = self.sess.run([self.output] + result_needed, feed_dict)
