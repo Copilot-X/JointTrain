@@ -3,10 +3,11 @@ import scipy.sparse as sp
 
 class GCN(object):
 
-    def __init__(self, is_training, drop_prob, num_rela):
+    def __init__(self, is_training, drop_prob, num_rela, dims):
         self.is_training = is_training
         self.dropout = drop_prob
         self.num_rela = num_rela
+        self.dims = dims
 
     def __preprocess_features__(self, features):
         """Row-normalize feature matrix and convert to tuple representation"""
@@ -43,7 +44,7 @@ class GCN(object):
             sparse_mx = to_tuple(sparse_mx)
 
         return sparse_mx
-    
+
     def __preprocess_adj__(self, adj):
         # Preprocessing of adjacency matrix for simple GCN model and conversion to tuple representation.
         adj_normalized = self.__adj_normalized__(adj + sp.eye(adj.shape[0]))
@@ -83,7 +84,7 @@ class GCN(object):
         dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
         pre_out = tf.sparse_retain(x, dropout_mask)
         return pre_out * (1./keep_prob)
-        
+
     def __gcnLayer__(self, layer_id, input_dim, output_dim, inputs,
                  sparse_inputs=False, act=tf.nn.relu, bias=False):
 
@@ -112,22 +113,26 @@ class GCN(object):
         for adj_idx in range(3):
             support = inputs[adj_idx]
             output = list()
+            w_id = str(layer_id) + str(adj_idx) + str(i)
             for i in range(len(support)):
-                out = self.__dot__(support[i], var[])
+                out = self.__dot__(support[i], var['weights_'+w_id])
                 output.append(self.__dot__(support[i], out, sparse=True))
-            outputs.append(tf.add_n(output))
+            outs = tf.add_n(output)
+            if bias:
+                outs = outs + vars['bias_'+str(layer_id)+str(adj_idx)]
+            outputs.append(outs)
         return outputs
 
     def __merge__(self, inputs, act=lambda x: x):
         return tf.add_n(inputs)
 
-    def gcn(self, dims):
-        
-        layer_num = len(dims) - 1
+    def gcn(self, supports, ):
+
+        layer_num = len(self.dims) - 1
         # layer builder
         outputs = self.__gcnLayer__(layer_id=0,
                                     input_dim=self.dims[0],
-                                    output_dim=self.dims[i+1],
+                                    output_dim=self.dims[1],
                                     inputs=self.supports,
                                     sparse_inputs=True,
                                     act=tf.nn.relu)
@@ -139,4 +144,4 @@ class GCN(object):
                                         act=tf.nn.relu)
         outputs = self.__merge__(outputs)
         return outputs[:self.num_rela]
-        
+

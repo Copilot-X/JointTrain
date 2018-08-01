@@ -37,7 +37,7 @@ tf.app.flags.DEFINE_string('model_name', 'pcnn_att', 'model\'s name')
 tf.app.flags.DEFINE_string('pretrain_model', 'None', 'pretrain model')
 FLAGS = tf.app.flags.FLAGS
 
-from framework import Framework 
+from framework import Framework
 def main(_):
     from model.pcnn_att import pcnn_att
 
@@ -45,4 +45,4 @@ def main(_):
     model(is_training=True)
 
 if __name__ == "__main__":
-    tf.app.run() 
+    tf.app.run()

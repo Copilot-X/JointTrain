@@ -5,6 +5,7 @@ import datetime
 import sys
 from network.embedding import Embedding
 from network.encoder import Encoder
+from network.gcn import GCN
 from network.selector import Selector
 from network.classifier import Classifier
 import os
@@ -51,28 +52,28 @@ class Framework(object):
         self.mask = tf.placeholder(dtype=tf.int32, shape=[None, FLAGS.max_length], name='input_mask')
         self.label = tf.placeholder(dtype=tf.int32, shape=[None], name='label')
         self.label_for_select = tf.placeholder(dtype=tf.int32, shape=[None], name='label_for_select')
-        self.scope = tf.placeholder(dtype=tf.int32, shape=[FLAGS.batch_size + 1], name='scope')    
+        self.scope = tf.placeholder(dtype=tf.int32, shape=[FLAGS.batch_size + 1], name='scope')
         self.weights = tf.placeholder(dtype=tf.float32, shape=[FLAGS.batch_size])
+        self.data_word_vec = np.load(os.path.join(FLAGS.export_path, 'vec.npy'))
         # gcn placeholders
         self.features = tf.placeholder(dtype=tf.float32, name='kg_features')
         adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
         self.adjs = [tf.placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
-
-        self.data_word_vec = np.load(os.path.join(FLAGS.export_path, 'vec.npy'))
+        self.gcn_dims = [100, 300, 500, 690]
 
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
         self.encoder = Encoder(is_training, FLAGS.drop_prob)
-        self.gcn = GCN(is_training, FLAGS.drop_prob, FLAGS.num_classes)
+        self.gcn = GCN(is_training, FLAGS.drop_prob, FLAGS.num_classes, self.gcn_dims)
         self.selector = Selector(FLAGS.num_classes, is_training, FLAGS.drop_prob)
         self.classifier = Classifier(is_training, self.label, self.weights)
 
-        # Metrics 
+        # Metrics
         self.acc_NA = Accuracy()
         self.acc_not_NA = Accuracy()
         self.acc_total = Accuracy()
         self.step = 0
-        
+
         # Session
         self.sess = None
 
@@ -141,7 +142,7 @@ class Framework(object):
         self.load_adjs = [h2r_adj, r2t_adj, self_adj]
         rela_embed = np.load(os.path.join(FLAGS.export_path, 'rela_embed.npy'))
         enty_embed = np.load(os.path.join(FLAGS.export_path, 'entity_embed.npy'))
-        self.load_features = np.concatenate(((rela_embed, enty_embed), axis=0)
+        self.load_features = np.concatenate((rela_embed, enty_embed), axis=0)
 
     def init_train_model(self, loss, output, optimizer=tf.train.GradientDescentOptimizer):
         print('initializing training model...')
@@ -244,7 +245,7 @@ class Framework(object):
         result = result[1:]
 
         return result
-    
+
     def train(self, one_step=train_one_step):
         if not os.path.exists(FLAGS.checkpoint_dir):
             os.mkdir(FLAGS.checkpoint_dir)
@@ -270,7 +271,7 @@ class Framework(object):
                         label.append(self.data_train_label[num[0]])
                         scope.append(scope[len(scope) - 1] + num[1] - num[0] + 1)
                         weights.append(self.reltot[self.data_train_label[num[0]]])
-                    
+
                     loss = one_step(self, index, scope, weights, label, [self.loss])
                 else:
                     index = range(i * FLAGS.batch_size, (i + 1) * FLAGS.batch_size)
@@ -307,7 +308,7 @@ class Framework(object):
             total = int(len(self.data_instance_scope) / FLAGS.batch_size)
 
             test_result = []
-            total_recall = 0 
+            total_recall = 0
             for i in range(total):
                 input_scope = self.data_instance_scope[i * FLAGS.batch_size:min((i + 1) * FLAGS.batch_size, len(self.data_instance_scope))]
                 index = []
@@ -317,9 +318,9 @@ class Framework(object):
                     index = index + list(range(num[0], num[1] + 1))
                     label.append(self.data_test_label[num[0]])
                     scope.append(scope[len(scope) - 1] + num[1] - num[0] + 1)
-    
+
                 one_step(self, index, scope, label, [])
-               
+
                 for j in range(len(self.test_output)):
                     pred = self.test_output[j]
                     entity = self.data_instance_entity[j + i * FLAGS.batch_size]
@@ -331,7 +332,7 @@ class Framework(object):
                 if i % 100 == 0:
                     sys.stdout.write('predicting {} / {}\n'.format(i, total))
                     sys.stdout.flush()
-            
+
             print('\nevaluating...')
 
             sorted_test_result = sorted(test_result, key=lambda x: x[2])

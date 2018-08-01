@@ -34,14 +34,14 @@ tf.app.flags.DEFINE_float('drop_prob', 0.5, 'dropout rate')
 
 FLAGS = tf.app.flags.FLAGS
 
-from framework import Framework 
+from framework import Framework
 def main(_):
     from model.pcnn_att import pcnn_att
-    
+
     if not FLAGS.model_name in locals():
         exit()
     model = locals()[FLAGS.model_name]
     model(is_training=False)
 
 if __name__ == "__main__":
-    tf.app.run() 
+    tf.app.run()
