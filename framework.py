@@ -14,6 +14,8 @@ import pickle as pkl
 import networkx as nx
 from scipy import sparse
 
+from tensorflow.python import debug as tf_debug
+
 import time
 
 FLAGS = tf.app.flags.FLAGS
@@ -167,6 +169,8 @@ class Framework(object):
 
         # Optimizer
         self.sess = tf.Session()
+        #self.sess = tf_debug.LocalCLIDebugWrapperSession(self.sess)
+
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         tf.summary.scalar('learning_rate', FLAGS.learning_rate)
         self.optimizer = optimizer(FLAGS.learning_rate)
