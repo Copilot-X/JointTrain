@@ -35,7 +35,7 @@ class GCN(object):
         def to_tuple(mx):
             if not sp.isspmatrix_coo(mx):
                 mx = mx.tocoo()
-            coords = np.vstack((mx.row, mx.col)).transpose()
+            coords = np.vstack((mx.row, mx.col))
             values = mx.data
             shape = mx.shape
             return coords, values, shape
@@ -115,11 +115,11 @@ class GCN(object):
             out = self.__dot__(self.supports[adj_idx], out, sparse=True)
             if bias:
                 outs = outs + vars['bias_'+str(i)]
-            outputs.append(out)
+            outputs.append(act(out))
         return outputs
 
     def __merge__(self, inputs, act=lambda x: x):
-        return tf.add_n(inputs)
+        return act(tf.add_n(inputs))
 
     def gcn(self, features, supports, num_features_nonzero):
         self.supports = supports
