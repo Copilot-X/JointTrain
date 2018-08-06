@@ -101,12 +101,13 @@ class GCN(object):
                     vars['bias'+str(i)] = tf.Variable(initial, name='bias_'+str(i))
 
         # drop out
-        if sparse_inputs:
-            for adj_idx in range(3):
-                inputs[adj_idx] = self.__sparse_dropout__(inputs[adj_idx], 1-self.dropout, self.num_features_nonzero)
-        else:
-            for i in range(3):
-                inputs[i] = tf.nn.dropout(inputs[i], 1-self.dropout)
+        if is_training:
+            if sparse_inputs:
+                for adj_idx in range(3):
+                    inputs[adj_idx] = self.__sparse_dropout__(inputs[adj_idx], 1-self.dropout, self.num_features_nonzero)
+            else:
+                for i in range(3):
+                    inputs[i] = tf.nn.dropout(inputs[i], 1-self.dropout)
 
         # convolve
         outputs = []
