@@ -188,10 +188,6 @@ class Framework(object):
 
     def init_test_model(self, output):
         print('initializing test model...')
-
-        # gcn data preprocess
-        self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
-
         self.output = output
         self.sess = tf.Session()
         self.saver = tf.train.Saver(max_to_keep=None)
