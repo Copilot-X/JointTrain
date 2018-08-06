@@ -16,6 +16,8 @@ from scipy import sparse
 
 import time
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 FLAGS = tf.app.flags.FLAGS
 
 class Accuracy(object):
@@ -150,7 +152,7 @@ class Framework(object):
         r2t_obj.close()
         h2r_adj = nx.adjacency_matrix(self.load_h2r)
         r2t_adj = nx.adjacency_matrix(self.load_r2t)
-        self_adj = sparse.csr_matrix(np.eye(h2r_adj.shape[0]))
+        self_adj = sparse.csr_matrix(sparse.eye(h2r_adj.shape[0]))
         self.load_adjs = [h2r_adj, r2t_adj, self_adj]
         rela_embed = np.load(os.path.join(FLAGS.export_path, 'rela_embed.npy'))
         enty_embed = np.load(os.path.join(FLAGS.export_path, 'entity_embed.npy'))
@@ -166,7 +168,11 @@ class Framework(object):
         self.output = output
 
         # Optimizer
-        self.sess = tf.Session()
+        config = tf.ConfigProto(allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
+        #self.sess = tf_debug.LocalCLIDebugWrapperSession(self.sess)
+
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         tf.summary.scalar('learning_rate', FLAGS.learning_rate)
         self.optimizer = optimizer(FLAGS.learning_rate)

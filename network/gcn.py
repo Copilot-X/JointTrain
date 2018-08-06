@@ -35,10 +35,10 @@ class GCN(object):
         def to_tuple(mx):
             if not sp.isspmatrix_coo(mx):
                 mx = mx.tocoo()
-            coords = np.vstack((mx.row, mx.col))
+            coords = np.vstack((mx.row, mx.col)).transpose()
             values = mx.data
             shape = mx.shape
-            return coords, values, shape
+            return (coords, values, shape)
 
         if isinstance(sparse_mx, list):
             for i in range(len(sparse_mx)):
@@ -62,7 +62,7 @@ class GCN(object):
         features = self.__preprocess_features__(features)
         supports = list()
         for i in range(len(adjs)):
-            supports.append([self.__preprocess_adj__(adjs[i])])
+            supports.append(self.__preprocess_adj__(adjs[i]))
         return features, supports
 
     def __dot__(self, x, y, sparse=False):
