@@ -99,29 +99,26 @@ class GCN(object):
                 if bias:
                     initial = tf.zeros([output_dim],  dtype=tf.float32)
                     vars['bias'+w_id] = tf.Variable(initial, name='bias_'+w_id)
-
-        # drop out
-        if self.is_training:
-            if sparse_inputs:
-                for adj_idx in range(3):
-                    inputs[adj_idx] = self.__sparse_dropout__(inputs[adj_idx], 1-self.dropout, self.num_features_nonzero)
-            else:
-                for i in range(3):
-                    inputs[i] = tf.nn.dropout(inputs[i], 1-self.dropout)
-
-        # convolve
-        outputs = []
-        for adj_idx in range(3):
-            w_id = str(layer_id) + str(adj_idx)
-            out = self.__dot__(inputs[adj_idx], vars['weights_'+w_id], sparse=sparse_inputs)
-            out = self.__dot__(self.supports[adj_idx], out, sparse=True)
-            if bias:
-                outs = outs + vars['bias_'+w_id]
-            outputs.append(act(out))
-
-        # summary
-        for key in vars:
-            tf.summary.histogram(key, vars[key])
+            # drop out
+            if self.is_training:
+                if sparse_inputs:
+                    for adj_idx in range(3):
+                        inputs[adj_idx] = self.__sparse_dropout__(inputs[adj_idx], 1-self.dropout, self.num_features_nonzero)
+                else:
+                    for i in range(3):
+                        inputs[i] = tf.nn.dropout(inputs[i], 1-self.dropout)
+            # convolve
+            outputs = []
+            for adj_idx in range(3):
+                w_id = str(layer_id) + str(adj_idx)
+                out = self.__dot__(inputs[adj_idx], vars['weights_'+w_id], sparse=sparse_inputs)
+                out = self.__dot__(self.supports[adj_idx], out, sparse=True)
+                if bias:
+                    outs = outs + vars['bias_'+w_id]
+                outputs.append(act(out))
+            # summary
+            for key in vars:
+                tf.summary.histogram(key, vars[key])
 
         return outputs
 
