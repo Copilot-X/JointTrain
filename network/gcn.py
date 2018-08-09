@@ -112,6 +112,7 @@ class GCN(object):
         # convolve
         outputs = []
         for adj_idx in range(3):
+            w_id = str(layer_id) + str(i)
             out = self.__dot__(inputs[adj_idx], vars['weights_'+w_id], sparse=sparse_inputs)
             out = self.__dot__(self.supports[adj_idx], out, sparse=True)
             if bias:
