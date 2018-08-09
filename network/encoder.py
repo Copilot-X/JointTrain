@@ -33,11 +33,11 @@ class Encoder(object):
 
     def __cnn_cell__(self, x, hidden_size, kernel_size, stride_size):
         x = tf.expand_dims(x, axis=1)
-        x = tf.layers.conv2d(inputs=x,
-                             filters = hidden_size,
-                             kernel_size = [1, kernel_size],
-                             strides = [1, stride_size],
-                             padding = 'same',
+        x = tf.layers.conv2d(inputs=x, 
+                             filters = hidden_size, 
+                             kernel_size = [1, kernel_size], 
+                             strides = [1, stride_size], 
+                             padding = 'same', 
                              kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
         return x
 
@@ -51,8 +51,7 @@ class Encoder(object):
 
     def pcnn(self, x, hidden_size, mask, kernel_size = 3, stride_size = 1, activation=tf.nn.relu):
         with tf.name_scope("pcnn"):
-            #max_length = x.get_shape()[1]
-            max_length = tf.shape(x)[1]
+            max_length = x.get_shape()[1]
             x = self.__cnn_cell__(x, hidden_size, kernel_size, stride_size)
             x = self.__piece_pooling__(x, max_length, hidden_size, mask)
             x = activation(x)
@@ -92,12 +91,12 @@ class Encoder(object):
             return tf.concat([fw_states, bw_states], axis = 1)
 
     def __normalize__(self,
-                      inputs,
+                      inputs, 
                       epsilon = 1e-8,
                       scope="ln",
-                      reuse=False):
+                      reuse=tf.AUTO_REUSE):
         '''Applies layer normalization.
-
+        
         Args:
           inputs: A tensor with 2 or more dimensions, where the first dimension has
             `batch_size`.
@@ -105,14 +104,14 @@ class Encoder(object):
           scope: Optional scope for `variable_scope`.
           reuse: Boolean, whether to reuse the weights of a previous layer
             by the same name.
-
+          
         Returns:
           A tensor with the same shape and data dtype as `inputs`.
         '''
         with tf.variable_scope(scope, reuse=reuse):
             inputs_shape = inputs.shape.as_list()
             params_shape = inputs_shape[-1:]
-
+            
             mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
             beta= tf.Variable(tf.zeros(params_shape))
             gamma = tf.Variable(tf.ones(params_shape))
@@ -121,32 +120,32 @@ class Encoder(object):
         return outputs
 
     def __multihead_attention__(self,
-                                queries,
-                                keys,
-                                num_units=None,
-                                num_heads=8,
+                                queries, 
+                                keys, 
+                                num_units=None, 
+                                num_heads=8, 
                                 dropout_rate=0,
                                 is_training=True,
                                 causality=False,
-                                scope="multihead_attention",
-                                reuse=None,
+                                scope="multihead_attention", 
+                                reuse=tf.AUTO_REUSE,
                                 residual=True):
         '''Applies multihead attention.
-
+        
         Args:
           queries: A 3d tensor with shape of [N, T_q, C_q].
           keys: A 3d tensor with shape of [N, T_k, C_k].
           num_units: A scalar. Attention size.
           dropout_rate: A floating point number.
           is_training: Boolean. Controller of mechanism for dropout.
-          causality: Boolean. If true, units that reference the future are masked.
+          causality: Boolean. If true, units that reference the future are masked. 
           num_heads: An int. Number of heads.
           scope: Optional scope for `variable_scope`.
           reuse: Boolean, whether to reuse the weights of a previous layer
             by the same name.
-
+            
         Returns
-          A 3d tensor with shape of (N, T_q, C)
+          A 3d tensor with shape of (N, T_q, C)  
         '''
         with tf.variable_scope(scope, reuse=reuse):
             # Set the fall back option for num_units
@@ -159,9 +158,9 @@ class Encoder(object):
             score = tf.matmul(Q, tf.transpose(K, [0, 2, 1]))
             outputs = tf.matmul(score, V)
             # Split and concat
-            Q_ = tf.concat(tf.split(Q, num_heads, axis=2), axis=0) # (h*N, T_q, C/h)
-            K_ = tf.concat(tf.split(K, num_heads, axis=2), axis=0) # (h*N, T_k, C/h)
-            V_ = tf.concat(tf.split(V, num_heads, axis=2), axis=0) # (h*N, T_k, C/h)
+            Q_ = tf.concat(tf.split(Q, num_heads, axis=2), axis=0) # (h*N, T_q, C/h) 
+            K_ = tf.concat(tf.split(K, num_heads, axis=2), axis=0) # (h*N, T_k, C/h) 
+            V_ = tf.concat(tf.split(V, num_heads, axis=2), axis=0) # (h*N, T_k, C/h) 
             # Multiplication
             outputs = tf.matmul(Q_, tf.transpose(K_, [0, 2, 1])) # (h*N, T_q, T_k)
             # Scale
@@ -177,7 +176,7 @@ class Encoder(object):
                 diag_vals = tf.ones_like(outputs[0, :, :]) # (T_q, T_k)
                 tril = tf.contrib.linalg.LinearOperatorTriL(diag_vals).to_dense() # (T_q, T_k)
                 masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(outputs)[0], 1, 1]) # (h*N, T_q, T_k)
-
+       
                 paddings = tf.ones_like(masks)*(-2**32+1)
                 outputs = tf.where(tf.equal(masks, 0), paddings, outputs) # (h*N, T_q, T_k)
             # Activation
@@ -200,20 +199,20 @@ class Encoder(object):
             outputs = self.__normalize__(outputs) # (N, T_q, C)
         return outputs
 
-    def __feedforward__(self,
-                        inputs,
+    def __feedforward__(self, 
+                        inputs, 
                         num_units=[2048, 512],
-                        scope="multihead_attention",
-                        reuse=None):
+                        scope="multihead_attention", 
+                        reuse=tf.AUTO_REUSE):
         '''Point-wise feed forward net.
-
+        
         Args:
           inputs: A 3d tensor with shape of [N, T, C].
           num_units: A list of two integers.
           scope: Optional scope for `variable_scope`.
           reuse: Boolean, whether to reuse the weights of a previous layer
             by the same name.
-
+            
         Returns:
           A 3d tensor with the same shape and dtype as inputs
         '''
@@ -239,10 +238,10 @@ class Encoder(object):
         for i in range(num_blocks):
             with tf.variable_scope("num_blocks_{}".format(i)):
                 ### Multihead Attention
-                self.enc = multihead_attention(queries = self.enc,
-                                                keys = self.enc,
-                                                num_units = hidden_size,
-                                                num_heads = num_heads,
+                self.enc = multihead_attention(queries = self.enc, 
+                                                keys = self.enc, 
+                                                num_units = hidden_size, 
+                                                num_heads = num_heads, 
                                                 dropout_rate = self.drop_prob,
                                                 is_training = self.is_training,
                                                 causality = False)
