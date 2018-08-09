@@ -95,10 +95,10 @@ class GCN(object):
         with tf.variable_scope('gcn_layer_' + str(layer_id)):
             for i in range(3):
                 w_id = str(layer_id) + str(i)
-                vars['weights_'+str(i)] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
+                vars['weights_'+w_id] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
                 if bias:
                     initial = tf.zeros([output_dim],  dtype=tf.float32)
-                    vars['bias'+str(i)] = tf.Variable(initial, name='bias_'+str(i))
+                    vars['bias'+w_id] = tf.Variable(initial, name='bias_'+w_id)
 
         # drop out
         if self.is_training:
@@ -112,11 +112,16 @@ class GCN(object):
         # convolve
         outputs = []
         for adj_idx in range(3):
-            out = self.__dot__(inputs[adj_idx], vars['weights_'+str(i)], sparse=sparse_inputs)
+            out = self.__dot__(inputs[adj_idx], vars['weights_'+w_id], sparse=sparse_inputs)
             out = self.__dot__(self.supports[adj_idx], out, sparse=True)
             if bias:
-                outs = outs + vars['bias_'+str(i)]
+                outs = outs + vars['bias_'+w_id]
             outputs.append(act(out))
+
+        # summary
+        for key in vars:
+            tf.summary.histogram(key, vars[key])
+
         return outputs
 
     def __merge__(self, inputs, act=lambda x: x):

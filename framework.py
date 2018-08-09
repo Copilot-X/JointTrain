@@ -16,7 +16,7 @@ from scipy import sparse
 
 import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+#os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -223,6 +223,8 @@ class Framework(object):
 
         result = self.sess.run([self.train_op, self.global_step, self.merged_summary, self.output] + result_needed, feed_dict)
         self.step = result[1]
+        # summary
+        self.summary_writer.add_summary(result[2], self.step)
         _output = result[3]
         result = result[4:]
 
