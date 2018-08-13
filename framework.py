@@ -67,7 +67,7 @@ class Framework(object):
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
         self.encoder = Encoder(is_training, FLAGS.drop_prob)
-        self.gcn = GCN(is_training, FLAGS.drop_prob, FLAGS.num_classes, self.gcn_dims)
+        self.gcn = GCN(is_training, FLAGS.gcn_drop_prob, FLAGS.num_classes, self.gcn_dims)
         self.selector = Selector(FLAGS.num_classes, is_training, FLAGS.drop_prob)
         self.classifier = Classifier(is_training, self.label, self.weights)
 
@@ -173,11 +173,18 @@ class Framework(object):
         self.sess = tf.Session(config=config)
         #self.sess = tf_debug.LocalCLIDebugWrapperSession(self.sess)
 
+        # optimizer
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
         tf.summary.scalar('learning_rate', FLAGS.learning_rate)
         self.optimizer = optimizer(FLAGS.learning_rate)
         self.grads_and_vars = self.optimizer.compute_gradients(loss)
         self.train_op = self.optimizer.apply_gradients(self.grads_and_vars, global_step=self.global_step)
+
+        # gradient check
+        grad_w00 = tf.gradients(xs=[self.gcn.weights['weights_00']], ys=self.loss)
+        grad_w01 = tf.gradients(xs=[self.gcn.weights['weights_01']], ys=self.loss)
+        tf.summary.histogram('grad_w00', grad_w00)
+        tf.summary.histogram('grad_w01', grad_w01)
 
         # Summary
         self.merged_summary = tf.summary.merge_all()
@@ -189,7 +196,9 @@ class Framework(object):
             self.sess.run(tf.global_variables_initializer())
         else:
             self.saver.restore(self.sess, FLAGS.pretrain_model)
-
+        # print all variables
+        #for var in tf.global_variables():
+        #    tf.summary.histogram(var.name, var)
         print('initializing finished')
 
     def init_test_model(self, output):

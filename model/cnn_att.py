@@ -18,7 +18,7 @@ def cnn_att(is_training):
     if is_training:
         loss = framework.classifier.softmax_cross_entropy(logit)
         output = framework.classifier.output(logit)
-        framework.init_train_model(loss, output, optimizer=tf.train.GradientDescentOptimizer)
+        framework.init_train_model(loss, output, optimizer=tf.train.AdamOptimizer)
         framework.load_train_data()
         framework.train()
     else:

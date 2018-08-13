@@ -26,7 +26,9 @@ tf.app.flags.DEFINE_integer('max_epoch',60,'maximum of training epochs')
 tf.app.flags.DEFINE_integer('batch_size',160,'entity numbers used each training time')
 tf.app.flags.DEFINE_float('learning_rate',0.01,'entity numbers used each training time')
 tf.app.flags.DEFINE_float('weight_decay',0.00001,'weight_decay')
+tf.app.flags.DEFINE_float('gcn_weight_decay', 5e-4, 'gcn weight decay')
 tf.app.flags.DEFINE_float('drop_prob',0.5,'dropout rate')
+tf.app.flags.DEFINE_float('gcn_drop_prob', 0.2, 'gcn dropout rate')
 
 tf.app.flags.DEFINE_string('checkpoint_dir', './checkpoint/', 'path to store checkpoint')
 tf.app.flags.DEFINE_string('summary_dir', './summary', 'path to store summary_dir')
@@ -40,6 +42,7 @@ FLAGS = tf.app.flags.FLAGS
 from framework import Framework
 def main(_):
     from model.pcnn_att import pcnn_att
+    from model.cnn_att import cnn_att
 
     model = locals()[FLAGS.model_name]
     model(is_training=True)

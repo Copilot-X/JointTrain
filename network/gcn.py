@@ -2,6 +2,8 @@ import tensorflow as tf
 import scipy.sparse as sp
 import numpy as np
 
+FLAGS = tf.app.flags.FLAGS
+
 class GCN(object):
 
     def __init__(self, is_training, drop_prob, num_rela, dims):
@@ -11,6 +13,7 @@ class GCN(object):
         self.dims = dims
         self.supports = None
         self.num_features_nonzero = None
+        self.weights = dict()
 
     def __preprocess_features__(self, features):
         """Row-normalize feature matrix and convert to tuple representation"""
@@ -87,18 +90,38 @@ class GCN(object):
         pre_out = tf.sparse_retain(x, dropout_mask)
         return pre_out * (1./keep_prob)
 
+    def loss(self, x, label):
+        """
+        label contains size: [self.num, embedding size]
+        """
+        with tf.variable_scope('gcn_loss'):
+            self.loss = tf.losses.mean_squared_error(label, x)
+            for weight in self.weights:
+                self.loss += self.weight_loss()
+        return self.loss
+
+    def weight_loss(self):
+        with tf.variable_scope('gcn_loss'):
+            weight_loss = None
+            for weight in self.weights:
+                if weight_loss is None:
+                    weight_loss = FLAGS.gcn_weight_decay * tf.nn.l2_loss(self.weights[weight])
+                else:
+                    weight_loss += FLAGS.gcn_weight_decay * tf.nn.l2_loss(self.weights[weight])
+        return weight_loss
+
     def __gcnLayer__(self, layer_id, input_dim, output_dim, inputs,
                      sparse_inputs=False, act=tf.nn.relu, bias=False):
 
         # weights and bias
-        vars = dict()
         with tf.variable_scope('gcn_layer_' + str(layer_id)):
             for i in range(3):
                 w_id = str(layer_id) + str(i)
-                vars['weights_'+w_id] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
+                #vars['weights_'+w_id] = self.__glorot__([input_dim, output_dim], name='weights_'+w_id)
+                self.weights['weights_'+w_id] = tf.get_variable('weights_'+w_id, shape=[input_dim, output_dim], initializer=tf.contrib.layers.xavier_initializer())
                 if bias:
                     initial = tf.zeros([output_dim],  dtype=tf.float32)
-                    vars['bias'+w_id] = tf.Variable(initial, name='bias_'+w_id)
+                    self.weights['bias'+w_id] = tf.Variable(initial, name='bias_'+w_id)
             # drop out
             if self.is_training:
                 if sparse_inputs:
@@ -111,14 +134,11 @@ class GCN(object):
             outputs = []
             for adj_idx in range(3):
                 w_id = str(layer_id) + str(adj_idx)
-                out = self.__dot__(inputs[adj_idx], vars['weights_'+w_id], sparse=sparse_inputs)
+                out = self.__dot__(inputs[adj_idx], self.weights['weights_'+w_id], sparse=sparse_inputs)
                 out = self.__dot__(self.supports[adj_idx], out, sparse=True)
                 if bias:
-                    outs = outs + vars['bias_'+w_id]
+                    outs = outs + self.weights['bias_'+w_id]
                 outputs.append(act(out))
-            # summary
-            for key in vars:
-                tf.summary.histogram(key, vars[key])
 
         return outputs
 
@@ -143,5 +163,10 @@ class GCN(object):
                                         inputs=outputs,
                                         act=tf.nn.relu)
         outputs = self.__merge__(outputs)
+
+        # summary
+        for weight in self.weights:
+            tf.summary.histogram(weight, self.weights[weight])
+
         return outputs[:self.num_rela]
 
