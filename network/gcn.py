@@ -146,13 +146,8 @@ class GCN(object):
         self.num_features_nonzero = num_features_nonzero
         layer_num = len(self.dims) - 1
         # layer builder
-        outputs = self.__gcnLayer__(layer_id=0,
-                                    input_dim=self.dims[0],
-                                    output_dim=self.dims[1],
-                                    inputs=features,
-                                    sparse_inputs=True,
-                                    act=tf.nn.relu)
-        for i in range(1, layer_num - 1):
+        outputs = features
+        for i in range(0, layer_num - 1):
             outputs = self.__gcnLayer__(layer_id=i,
                                         input_dim=self.dims[i],
                                         output_dim=self.dims[i+1],
