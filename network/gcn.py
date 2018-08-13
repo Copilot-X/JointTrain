@@ -125,25 +125,21 @@ class GCN(object):
             # drop out
             if self.is_training:
                 if sparse_inputs:
-                    for adj_idx in range(3):
-                        inputs[adj_idx] = self.__sparse_dropout__(inputs[adj_idx], 1-self.dropout, self.num_features_nonzero)
+                    inputs = self.__sparse_dropout__(inputs, 1-self.dropout, self.num_features_nonzero)
                 else:
-                    for i in range(3):
-                        inputs[i] = tf.nn.dropout(inputs[i], 1-self.dropout)
+                    inputs = tf.nn.dropout(inputs, 1-self.dropout)
             # convolve
             outputs = []
             for adj_idx in range(3):
                 w_id = str(layer_id) + str(adj_idx)
-                out = self.__dot__(inputs[adj_idx], self.weights['weights_'+w_id], sparse=sparse_inputs)
+                out = self.__dot__(inputs, self.weights['weights_'+w_id], sparse=sparse_inputs)
                 out = self.__dot__(self.supports[adj_idx], out, sparse=True)
                 if bias:
                     outs = outs + self.weights['bias_'+w_id]
-                outputs.append(act(out))
+                outputs.append(out)
 
-        return outputs
+        return act(tf.add_n(outputs))
 
-    def __merge__(self, inputs, act=lambda x: x):
-        return act(tf.add_n(inputs))
 
     def gcn(self, features, supports, num_features_nonzero):
         self.supports = supports
@@ -153,7 +149,7 @@ class GCN(object):
         outputs = self.__gcnLayer__(layer_id=0,
                                     input_dim=self.dims[0],
                                     output_dim=self.dims[1],
-                                    inputs=[features for _ in range(3)],
+                                    inputs=features,
                                     sparse_inputs=True,
                                     act=tf.nn.relu)
         for i in range(1, layer_num):
@@ -162,7 +158,6 @@ class GCN(object):
                                         output_dim=self.dims[i+1],
                                         inputs=outputs,
                                         act=tf.nn.relu)
-        outputs = self.__merge__(outputs)
 
         # summary
         for weight in self.weights:
