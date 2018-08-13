@@ -152,12 +152,17 @@ class GCN(object):
                                     inputs=features,
                                     sparse_inputs=True,
                                     act=tf.nn.relu)
-        for i in range(1, layer_num):
+        for i in range(1, layer_num - 1):
             outputs = self.__gcnLayer__(layer_id=i,
                                         input_dim=self.dims[i],
                                         output_dim=self.dims[i+1],
                                         inputs=outputs,
                                         act=tf.nn.relu)
+        outputs = self.__gcnLayer__(layer_id=layer_num-1,
+                                    input_dim=self.dims[i],
+                                    output_dim=self.dims[i+1],
+                                    inputs=outputs,
+                                    act=lambda x: x)
 
         # summary
         for weight in self.weights:
