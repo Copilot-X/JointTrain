@@ -159,8 +159,8 @@ class GCN(object):
                                         inputs=outputs,
                                         act=tf.nn.relu)
         outputs = self.__gcnLayer__(layer_id=layer_num-1,
-                                    input_dim=self.dims[i],
-                                    output_dim=self.dims[i+1],
+                                    input_dim=self.dims[layer_num-1],
+                                    output_dim=self.dims[layer_num],
                                     inputs=outputs,
                                     act=lambda x: x)
 
