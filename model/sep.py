@@ -22,7 +22,7 @@ def sep(is_training):
 
     framework.init_train_model(cnn_loss,
                                output,
-                               optimizer=tf.train.AdamOptimizer,
+                               optimizer=tf.train.GradientDescentOptimizer,
                                gcn_loss=gcn_loss,
                                gcn_optimizer=tf.train.AdamOptimizer)
     framework.load_train_data()
