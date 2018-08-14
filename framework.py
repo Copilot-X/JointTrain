@@ -61,8 +61,9 @@ class Framework(object):
         self.features = tf.sparse_placeholder(dtype=tf.float32, name='kg_features')
         adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
         self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
-        self.gcn_dims = [100, 300, 500, 690]
+        self.gcn_dims = [100, 150, 200, 230]
         self.num_features_nonzero = tf.placeholder(tf.int32)
+        self.gcn_label = tf.placeholder(tf.float32)
 
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
@@ -160,7 +161,7 @@ class Framework(object):
         # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
 
-    def init_train_model(self, loss, output, optimizer=tf.train.GradientDescentOptimizer):
+    def init_train_model(self, loss, output, optimizer=tf.train.GradientDescentOptimizer, gcn_loss=None, gcn_optimizer=None):
         print('initializing training model...')
 
         # Loss and output
@@ -180,11 +181,17 @@ class Framework(object):
         self.grads_and_vars = self.optimizer.compute_gradients(loss)
         self.train_op = self.optimizer.apply_gradients(self.grads_and_vars, global_step=self.global_step)
 
+        # gcn op
+        if (not gcn_loss is None) and (not gcn_optimizer is None):
+            self.gcn_loss = gcn_loss
+            self.gcn_optimizer = gcn_optimizer(FLAGS.gcn_learning_rate)
+            self.gcn_train_op = self.gcn_optimizer.minimize(self.gcn_loss)
+
         # gradient check
-        grad_w00 = tf.gradients(xs=[self.gcn.weights['weights_00']], ys=self.loss)
-        grad_w01 = tf.gradients(xs=[self.gcn.weights['weights_01']], ys=self.loss)
-        tf.summary.histogram('grad_w00', grad_w00)
-        tf.summary.histogram('grad_w01', grad_w01)
+        #grad_w00 = tf.gradients(xs=[self.gcn.weights['weights_00']], ys=self.loss)
+        #grad_w01 = tf.gradients(xs=[self.gcn.weights['weights_01']], ys=self.loss)
+        #tf.summary.histogram('grad_w00', grad_w00)
+        #tf.summary.histogram('grad_w01', grad_w01)
 
         # Summary
         self.merged_summary = tf.summary.merge_all()
@@ -200,6 +207,29 @@ class Framework(object):
         #for var in tf.global_variables():
         #    tf.summary.histogram(var.name, var)
         print('initializing finished')
+
+    def train_gcn(self):
+        print('start training separately training gcn...')
+
+        with tf.name_scope('attention'):
+            with tf.variable_scope('attention_logits', reuse = True):
+                label = np.squeeze(np.asarray(self.sess.run([tf.get_variable('relation_matrix')])))
+        for epoch in range(FLAGS.gcn_epoch):
+            feed_dict = {
+                self.features: self.load_features,
+                self.num_features_nonzero: self.load_features[1].shape,
+                self.gcn_label: label
+            }
+            feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
+            result = self.sess.run([self.gcn_train_op, self.gcn_loss], feed_dict)
+            #self.step = result[1]
+            #self.summary_writer_add_summary(result[3], self.step)
+            loss = result[1]
+            print('gcn epoch: ' + str(epoch) + ': loss: ' + str(loss))
+        # saving model
+        path = self.saver.save(self.sess, os.path.join(FLAGS.checkpoint_dir, 'sep.ckpt'), global_step=epoch)
+        print('gcn training finished...')
+
 
     def init_test_model(self, output):
         print('initializing test model...')

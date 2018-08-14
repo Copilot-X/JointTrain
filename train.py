@@ -23,8 +23,10 @@ tf.app.flags.DEFINE_integer('pos_size',5,'position embedding size')
 tf.app.flags.DEFINE_integer('word_size', 50, 'word embedding size')
 
 tf.app.flags.DEFINE_integer('max_epoch',60,'maximum of training epochs')
+tf.app.flags.DEFINE_integer('gcn_epoch', 40, 'maximum of gcn epochs')
 tf.app.flags.DEFINE_integer('batch_size',160,'entity numbers used each training time')
 tf.app.flags.DEFINE_float('learning_rate',0.01,'entity numbers used each training time')
+tf.app.flags.DEFINE_float('gcn_learning_rate',0.01,'separate gcn learning rate')
 tf.app.flags.DEFINE_float('weight_decay',0.00001,'weight_decay')
 tf.app.flags.DEFINE_float('gcn_weight_decay', 5e-4, 'gcn weight decay')
 tf.app.flags.DEFINE_float('drop_prob',0.5,'dropout rate')
@@ -43,6 +45,7 @@ from framework import Framework
 def main(_):
     from model.pcnn_att import pcnn_att
     from model.cnn_att import cnn_att
+    from model.sep import sep
 
     model = locals()[FLAGS.model_name]
     model(is_training=True)
