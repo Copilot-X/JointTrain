@@ -18,7 +18,7 @@ class Selector(object):
         else:
             return x
 
-    def __logits__(self, x, var_scope = None, reuse = None, gcn_rela=None):
+    def __logits__(self, x, var_scope = None, reuse = tf.AUTO_REUSE, gcn_rela=None):
         with tf.variable_scope(var_scope or 'logits', reuse = reuse):
             if gcn_rela is None:
                 relation_matrix = tf.get_variable('relation_matrix', [self.num_classes, x.shape[1]], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())

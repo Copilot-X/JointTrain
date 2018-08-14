@@ -161,7 +161,7 @@ class Framework(object):
         # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
 
-    def init_train_model(self, loss, output, optimizer=tf.train.GradientDescentOptimizer, gcn_loss=None, gcn_optimizer=None):
+    def init_train_model(self, loss, output, optimizer=None, gcn_loss=None, gcn_optimizer=None):
         print('initializing training model...')
 
         # Loss and output
@@ -172,7 +172,6 @@ class Framework(object):
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
-        #self.sess = tf_debug.LocalCLIDebugWrapperSession(self.sess)
 
         # optimizer
         self.global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -203,9 +202,7 @@ class Framework(object):
             self.sess.run(tf.global_variables_initializer())
         else:
             self.saver.restore(self.sess, FLAGS.pretrain_model)
-        # print all variables
-        #for var in tf.global_variables():
-        #    tf.summary.histogram(var.name, var)
+
         print('initializing finished')
 
     def train_gcn(self):
