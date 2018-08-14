@@ -16,7 +16,7 @@ from scipy import sparse
 
 import time
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 FLAGS = tf.app.flags.FLAGS
 
