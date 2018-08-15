@@ -47,6 +47,7 @@ def main(_):
     from model.pcnn_att import pcnn_att
     from model.cnn_att import cnn_att
     from model.sep import sep
+    from model.joint import joint
 
     model = locals()[FLAGS.model_name]
     model(is_training=True)

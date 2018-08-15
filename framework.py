@@ -201,7 +201,7 @@ class Framework(object):
         if FLAGS.pretrain_model == "None":
             self.sess.run(tf.global_variables_initializer())
         else:
-            self.saver.restore(self.sess, FLAGS.pretrain_model)
+            self.saver.restore(self.sess, os.path.join(FLAGS.pretrain_dir, FLAGS.pretrain_model))
 
         print('initializing finished')
 
