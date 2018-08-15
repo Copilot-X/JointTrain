@@ -39,6 +39,7 @@ tf.app.flags.DEFINE_integer('save_epoch', 2, 'save the checkpoint after how many
 
 tf.app.flags.DEFINE_string('model_name', 'pcnn_att', 'model\'s name')
 tf.app.flags.DEFINE_string('pretrain_model', 'None', 'pretrain model')
+tf.app.flags.DEFINE_string('pretrain_dir', './pretrain/', 'pretrain dir')
 FLAGS = tf.app.flags.FLAGS
 
 from framework import Framework

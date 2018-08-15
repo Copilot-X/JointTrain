@@ -224,7 +224,7 @@ class Framework(object):
             loss = result[1]
             print('gcn epoch: ' + str(epoch) + ': loss: ' + str(loss))
         # saving model
-        path = self.saver.save(self.sess, os.path.join(FLAGS.checkpoint_dir, 'sep.ckpt'), global_step=epoch)
+        path = self.saver.save(self.sess, os.path.join(FLAGS.pretrain_dir, 'sep.ckpt'))
         print('gcn training finished...')
 
 
@@ -260,7 +260,7 @@ class Framework(object):
         result = self.sess.run([self.train_op, self.global_step, self.merged_summary, self.output] + result_needed, feed_dict)
         self.step = result[1]
         # summary
-        self.summary_writer.add_summary(result[2], self.step)
+        #self.summary_writer.add_summary(result[2], self.step)
         _output = result[3]
         result = result[4:]
 
