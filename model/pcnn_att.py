@@ -15,9 +15,9 @@ def pcnn_att(is_training):
     # pcnn layer
     x = framework.encoder.pcnn(embedding, FLAGS.hidden_size, framework.mask, activation=tf.nn.relu)
     # gcn layer
-    rela_embed = framework.gcn.gcn(framework.features, framework.supports, framework.num_features_nonzero)
+    y = framework.gcn.gcn(framework.features, framework.supports, framework.num_features_nonzero)
     # attention
-    logit, repre = framework.selector.attention(x, framework.scope, framework.label_for_select, gcn_rela=rela_embed)
+    logit, repre = framework.selector.attention(x, framework.scope, framework.label_for_select)
 
     if is_training:
         loss = framework.classifier.softmax_cross_entropy(logit)

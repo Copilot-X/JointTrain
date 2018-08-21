@@ -241,22 +241,37 @@ def build_kg(instance_triple):
     print 'building KG...'
     kg_h2r = nx.Graph()
     kg_r2t = nx.Graph()
+    entity2id = dict()
+    # add entity ot kg node
+    for pair in instance_triple:
+        e1_id, e2_id, _ = pair
+        kg_h2r.add_nodes_from([e1_id, e2_id])
+        kg_r2t.add_nodes_from([e1_id, e2_id])
+        entity2id[e1_id] = len(entity2id)
+        entity2id[e2_id] = len(entity2id)
     # add relation to kg node
     kg_h2r.add_nodes_from(range(53))
     kg_r2t.add_nodes_from(range(53))
-    # add entity and edges
+    # add edges and construct entity scope id
+    ent1_id = list()
+    ent2_id = list()
     for pair in instance_triple:
         e1_id, e2_id, r = pair
         r = int(r)
-        kg_h2r.add_nodes_from([e1_id, e2_id])
-        kg_r2t.add_nodes_from([e1_id, e2_id])
         kg_h2r.add_edge(e1_id, r)
         kg_r2t.add_edge(e2_id, r)
+        ent1_id += [entity2id[e1_id]]
+        ent2_id += [entity2id[e2_id]]
+    ent1_id = np.asarray(ent1_id, dtype=np.int32).reshape((len(ent1_id), 1))
+    ent2_id = np.asarray(ent2_id, dtype=np.int32).reshape((len(ent2_id), 1))
+    ent_id = np.concatenate((ent1_id, ent2_id), axis=1)
+
     print 'saving KG...'
     with open(export_path + 'h2r.graph', 'wb') as f:
         pkl.dump(kg_h2r, f)
     with open(export_path + 'r2t.graph', 'wb') as f:
         pkl.dump(kg_r2t, f)
+    np.save(export_path+'ent2id.npy', ent_id)
 
 
 init_word()

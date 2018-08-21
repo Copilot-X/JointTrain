@@ -14,7 +14,7 @@ def joint(is_training):
     embedding = framework.embedding.concat_embedding(word_embedding, pos_embedding)
     x = framework.encoder.cnn(embedding, FLAGS.hidden_size, framework.mask, activation=tf.nn.relu)
     rela_embed = framework.gcn.gcn(framework.features, framework.supports, framework.num_features_nonzero)
-    logit, repre = framework.selector.attention(x, framework.scope, framework.label_for_select, gcn_rela=rela_embed)
+    logit, repre = framework.selector.attention(x, framework.scope, framework.label_for_select)
 
     if is_training:
         loss = framework.classifier.softmax_cross_entropy(logit)

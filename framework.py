@@ -58,10 +58,11 @@ class Framework(object):
         self.weights = tf.placeholder(dtype=tf.float32, shape=[FLAGS.batch_size])
         self.data_word_vec = np.load(os.path.join(FLAGS.export_path, 'vec.npy'))
         # Gcn
+        self.ent2id = tf.palceholder(dtype=tf.int32, name='ent2id')
         self.features = tf.sparse_placeholder(dtype=tf.float32, name='kg_features')
         adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
         self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
-        self.gcn_dims = [100, 150, 200, 230]
+        self.gcn_dims = [100, 85, 70, 53]
         self.num_features_nonzero = tf.placeholder(tf.int32)
         self.gcn_label = tf.placeholder(tf.float32)
 
@@ -157,7 +158,8 @@ class Framework(object):
         self.load_adjs = [h2r_adj, r2t_adj, self_adj]
         rela_embed = np.load(os.path.join(FLAGS.export_path, 'rela_embed.npy'))
         enty_embed = np.load(os.path.join(FLAGS.export_path, 'entity_embed.npy'))
-        self.load_features = np.concatenate((rela_embed, enty_embed), axis=0)
+        self.load_features = np.concatenate((enty_embed, rela_embed), axis=0)
+        self.load_ent2id = np.load(os.path.join(FLAGS.export_path, 'ent2id.npy'))
         # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
 
@@ -253,7 +255,8 @@ class Framework(object):
             self.weights: weights,
             # gcn placeholders
             self.features: self.load_features,
-            self.num_features_nonzero: self.load_features[1].shape
+            self.num_features_nonzero: self.load_features[1].shape,
+            self.ent2id: self.load_ent2id[index, :]
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
 

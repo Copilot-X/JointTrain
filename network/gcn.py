@@ -90,6 +90,15 @@ class GCN(object):
         pre_out = tf.sparse_retain(x, dropout_mask)
         return pre_out * (1./keep_prob)
 
+    def rela_loss(self, x):
+        with tf.variable_scope('gcn_loss'):
+            label = tf.one_hot(range(self.num_rela), self.num_rela)
+            xlen = tf.shape(x)[0]
+            rela_idx = tf.constant(value=range(xlen - self.num_rela, xlen), dtype=tf.int64, name='rela_idx')
+            pred = tf.nn.embedding_lookup(x, rela_idx)
+            rela_loss = tf.losses.mean_squared_error(label, tf.nn.softmax(pred))
+        return rela_loss
+        
     def loss(self, x, label):
         """
         label contains size: [self.num, embedding size]
@@ -169,5 +178,5 @@ class GCN(object):
         for weight in self.weights:
             tf.summary.histogram(weight, self.weights[weight])
 
-        return outputs[:self.num_rela]
+        return outputs
 
