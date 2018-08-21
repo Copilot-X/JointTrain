@@ -23,7 +23,7 @@ class Selector(object):
             relation_matrix = tf.get_variable('relation_matrix', [self.num_classes, x.shape[1]], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
             bias = tf.get_variable('bias', [self.num_classes], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
             if not gcn_pred is None:
-                logits = tf.matmul(gcn_pred, tf.tf.matmul(x, tf.transpose(relation_matrix))) + bias
+                logits = gcn_pred * tf.matmul(x, tf.transpose(relation_matrix)) + bias
             else:
                 logits = tf.matmul(x, tf.transpose(relation_matrix)) + bias
         return logits

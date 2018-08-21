@@ -58,7 +58,7 @@ class Framework(object):
         self.weights = tf.placeholder(dtype=tf.float32, shape=[FLAGS.batch_size])
         self.data_word_vec = np.load(os.path.join(FLAGS.export_path, 'vec.npy'))
         # Gcn
-        self.ent2id = tf.palceholder(dtype=tf.int32, name='ent2id')
+        self.ent2id = tf.placeholder(dtype=tf.int32, name='ent2id')
         self.features = tf.sparse_placeholder(dtype=tf.float32, name='kg_features')
         adj_name = ['h2r_adj', 'r2t_adj', 'self_adj']
         self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
@@ -208,7 +208,7 @@ class Framework(object):
         self.saver = tf.train.Saver(max_to_keep=None)
         print('initializing finished')
 
-    def train_one_step(self, index, scope, weights, label, result_needed=[]):
+    def train_one_step(self, index, scope, weights, label, ent_scope, result_needed=[]):
         
         feed_dict = {
             self.word: self.data_train_word[index, :],
@@ -224,7 +224,7 @@ class Framework(object):
             # gcn placeholders
             self.features: self.load_features,
             self.num_features_nonzero: self.load_features[1].shape,
-            self.ent2id: self.load_ent2id[index, :]
+            self.ent2id: self.load_ent2id[ent_scope, :]
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
 
@@ -245,7 +245,7 @@ class Framework(object):
 
         return result
 
-    def test_one_step(self, index, scope, label, result_needed=[]):
+    def test_one_step(self, index, scope, label, ent_scope, result_needed=[]):
         feed_dict = {
             self.word: self.data_test_word[index, :],
             #self.word_vec: self.data_word_vec,
@@ -258,8 +258,8 @@ class Framework(object):
             self.scope: np.array(scope),
             # gcn placeholders
             self.features: self.load_features,
-            self.num_features_nonzero: self.load_features[1].shape
-            self.ent2id: self.load_ent2id[index, :]
+            self.num_features_nonzero: self.load_features[1].shape,
+            self.ent2id: self.load_ent2id[ent_scope, :]
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
         result = self.sess.run([self.output] + result_needed, feed_dict)
@@ -289,7 +289,8 @@ class Framework(object):
             np.random.shuffle(train_order)
             for i in range(int(len(train_order) / float(FLAGS.batch_size))):
                 if self.use_bag:
-                    input_scope = np.take(self.data_instance_scope, train_order[i * FLAGS.batch_size:(i + 1) * FLAGS.batch_size], axis=0)
+                    ent_scope = train_order[i * FLAGS.batch_size:(i + 1) * FLAGS.batch_size]
+                    input_scope = np.take(self.data_instance_scope, ent_scope, axis=0)
                     index = []
                     scope = [0]
                     weights = []
@@ -300,7 +301,7 @@ class Framework(object):
                         scope.append(scope[len(scope) - 1] + num[1] - num[0] + 1)
                         weights.append(self.reltot[self.data_train_label[num[0]]])
 
-                    loss = one_step(self, index, scope, weights, label, [self.loss])
+                    loss = one_step(self, index, scope, weights, label, ent_scope, [self.loss])
                 else:
                     index = range(i * FLAGS.batch_size, (i + 1) * FLAGS.batch_size)
                     weights = []
