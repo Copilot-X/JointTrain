@@ -64,7 +64,6 @@ class Framework(object):
         self.supports = [tf.sparse_placeholder(dtype=tf.float32, name=adj_name[i]) for i in range(3)]
         self.gcn_dims = [100, 85, 70, 53]
         self.num_features_nonzero = tf.placeholder(tf.int32)
-        self.gcn_label = tf.placeholder(tf.float32)
 
         # Network
         self.embedding = Embedding(is_training, self.data_word_vec, self.word, self.pos1, self.pos2)
@@ -188,12 +187,6 @@ class Framework(object):
             self.gcn_optimizer = gcn_optimizer(FLAGS.gcn_learning_rate)
             self.gcn_train_op = self.gcn_optimizer.minimize(self.gcn_loss)
 
-        # gradient check
-        #grad_w00 = tf.gradients(xs=[self.gcn.weights['weights_00']], ys=self.loss)
-        #grad_w01 = tf.gradients(xs=[self.gcn.weights['weights_01']], ys=self.loss)
-        #tf.summary.histogram('grad_w00', grad_w00)
-        #tf.summary.histogram('grad_w01', grad_w01)
-
         # Summary
         self.merged_summary = tf.summary.merge_all()
         self.summary_writer = tf.summary.FileWriter(FLAGS.summary_dir, self.sess.graph)
@@ -207,28 +200,6 @@ class Framework(object):
 
         print('initializing finished')
 
-    def train_gcn(self):
-        print('start training separately training gcn...')
-
-        with tf.name_scope('attention'):
-            with tf.variable_scope('attention_logits', reuse = True):
-                label = np.squeeze(np.asarray(self.sess.run([tf.get_variable('relation_matrix')])))
-        for epoch in range(FLAGS.gcn_epoch):
-            feed_dict = {
-                self.features: self.load_features,
-                self.num_features_nonzero: self.load_features[1].shape,
-                self.gcn_label: label
-            }
-            feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
-            result = self.sess.run([self.gcn_train_op, self.gcn_loss], feed_dict)
-            #self.step = result[1]
-            #self.summary_writer_add_summary(result[3], self.step)
-            loss = result[1]
-            print('gcn epoch: ' + str(epoch) + ': loss: ' + str(loss))
-        # saving model
-        path = self.saver.save(self.sess, os.path.join(FLAGS.pretrain_dir, 'sep.ckpt'))
-        print('gcn training finished...')
-
 
     def init_test_model(self, output):
         print('initializing test model...')
@@ -238,10 +209,7 @@ class Framework(object):
         print('initializing finished')
 
     def train_one_step(self, index, scope, weights, label, result_needed=[]):
-        #print self.data_train_word[index, :].shape
-        #print 'limit bag size < 1000'
-        #if self.data_train_word[index, :].shape[0] > 500:
-        #    return [-1]
+        
         feed_dict = {
             self.word: self.data_train_word[index, :],
             #self.word_vec: self.data_word_vec,
@@ -291,6 +259,7 @@ class Framework(object):
             # gcn placeholders
             self.features: self.load_features,
             self.num_features_nonzero: self.load_features[1].shape
+            self.ent2id: self.load_ent2id[index, :]
         }
         feed_dict.update({self.supports[i]: self.load_adjs[i] for i in range(3)})
         result = self.sess.run([self.output] + result_needed, feed_dict)
