@@ -45,6 +45,7 @@ class Framework(object):
 
     def __init__(self, is_training, use_bag=True):
         self.use_bag = use_bag
+        self.is_training = is_training
         # Place Holder
         self.word = tf.placeholder(dtype=tf.int32, shape=[None, FLAGS.max_length], name='input_word')
         #self.word_vec = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.word_size], name='word_vec')
@@ -158,7 +159,10 @@ class Framework(object):
         rela_embed = np.load(os.path.join(FLAGS.export_path, 'rela_embed.npy'))
         enty_embed = np.load(os.path.join(FLAGS.export_path, 'entity_embed.npy'))
         self.load_features = np.concatenate((enty_embed, rela_embed), axis=0)
-        self.load_ent2id = np.load(os.path.join(FLAGS.export_path, 'ent2id.npy'))
+        if self.is_training:
+            self.load_ent2id = np.load(os.path.join(FLAGS.export_path, 'ent2id.npy'))
+        else:
+            self.load_ent2id = np.load(os.path.join(FLAGS.export_path, 'ent2id_test.npy'))
         # gcn data preprocess
         self.load_features, self.load_adjs = self.gcn.preprocess(self.load_features, self.load_adjs)
 
@@ -339,7 +343,8 @@ class Framework(object):
             test_result = []
             total_recall = 0
             for i in range(total):
-                input_scope = self.data_instance_scope[i * FLAGS.batch_size:min((i + 1) * FLAGS.batch_size, len(self.data_instance_scope))]
+                ent_scope = range(i * FLAGS.batch_size:min((i + 1) * FLAGS.batch_size, len(self.data_instance_scope)))
+                input_scope = self.data_instance_scope[ent_scope]
                 index = []
                 scope = [0]
                 label = []
@@ -348,7 +353,7 @@ class Framework(object):
                     label.append(self.data_test_label[num[0]])
                     scope.append(scope[len(scope) - 1] + num[1] - num[0] + 1)
 
-                one_step(self, index, scope, label, [])
+                one_step(self, index, scope, label, ent_scope, [])
 
                 for j in range(len(self.test_output)):
                     pred = self.test_output[j]

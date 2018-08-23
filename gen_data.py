@@ -272,6 +272,19 @@ def build_kg(instance_triple):
     with open(export_path + 'r2t.graph', 'wb') as f:
         pkl.dump(kg_r2t, f)
     np.save(export_path+'ent2id.npy', ent_id)
+    return entity2id
+
+def build_test(instance_triple, entity2id):
+    ent1_id = list()
+    ent2_id = list()
+    for pair in instance_triple:
+        e1_id, e2_id, _ = pair
+        ent1_id += [entity2id[e1_id]]
+        ent2_id += [entity2id[e2_id]]
+    ent1_id = np.asarray(ent1_id, dtype=np.int32).reshape((len(ent1_id), 1))
+    ent2_id = np.asarray(ent2_id, dtype=np.int32).reshape((len(ent2_id), 1))
+    ent_id = np.concatenate((ent1_id, ent2_id), axis=1)
+    np.save(export_path+'ent2id_test.npy', ent_id)
 
 
 init_word()
@@ -293,7 +306,7 @@ np.save(export_path+'train_word', train_word)
 np.save(export_path+'train_pos1', train_pos1)
 np.save(export_path+'train_pos2', train_pos2)
 np.save(export_path+'train_mask', train_mask)
-build_kg(instance_triple)
+entity2id = build_kg(instance_triple)
 
 instance_entity, instance_entity_no_bag, instance_triple, instance_scope, test_len, test_label, test_word, test_pos1, test_pos2, test_mask = init_test_files("test_sort")
 np.save(export_path+'test_instance_entity', instance_entity)
@@ -306,4 +319,5 @@ np.save(export_path+'test_word', test_word)
 np.save(export_path+'test_pos1', test_pos1)
 np.save(export_path+'test_pos2', test_pos2)
 np.save(export_path+'test_mask', test_mask)
+build_test(instance_triple, entity2id)
 
